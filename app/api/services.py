@@ -4,9 +4,40 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.monitoring.service_monitor import monitor_service
 from app.schemas.health_check import HealthCheckResponse
+from app.schemas.service import ServiceCreate, ServiceResponse
+from app.services.service_registry import create_service, list_services
 
 
 router = APIRouter(prefix="/api/services", tags=["services"])
+
+
+@router.post(
+    "",
+    response_model=ServiceResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_monitored_service(
+    payload: ServiceCreate,
+    db: Session = Depends(get_db),
+) -> ServiceResponse:
+    service = create_service(
+        db=db,
+        name=payload.name,
+        url=str(payload.url),
+        is_active=payload.is_active,
+    )
+    return ServiceResponse.model_validate(service)
+
+
+@router.get(
+    "",
+    response_model=list[ServiceResponse],
+)
+def get_monitored_services(
+    db: Session = Depends(get_db),
+) -> list[ServiceResponse]:
+    services = list_services(db)
+    return [ServiceResponse.model_validate(service) for service in services]
 
 
 @router.post(
