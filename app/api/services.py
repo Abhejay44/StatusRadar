@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.monitoring.history import get_latest_health_check
 from app.monitoring.service_monitor import monitor_service
 from app.schemas.health_check import HealthCheckResponse
 from app.schemas.service import ServiceCreate, ServiceResponse
@@ -38,6 +39,28 @@ def get_monitored_services(
 ) -> list[ServiceResponse]:
     services = list_services(db)
     return [ServiceResponse.model_validate(service) for service in services]
+
+
+@router.get(
+    "/{service_id}/checks/latest",
+    response_model=HealthCheckResponse,
+)
+def get_latest_service_check(
+    service_id: int,
+    db: Session = Depends(get_db),
+) -> HealthCheckResponse:
+    try:
+        health_check = get_latest_health_check(
+            db=db,
+            service_id=service_id,
+        )
+    except (ValueError, LookupError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return HealthCheckResponse.model_validate(health_check)
 
 
 @router.post(
