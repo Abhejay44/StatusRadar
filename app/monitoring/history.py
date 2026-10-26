@@ -32,3 +32,26 @@ def get_latest_health_check(
         )
 
     return health_check
+
+
+def list_health_checks(
+    db: Session,
+    service_id: int,
+    limit: int = 20,
+) -> list[HealthCheck]:
+    service = db.get(Service, service_id)
+
+    if service is None:
+        raise ValueError(f"Service with id {service_id} was not found")
+
+    statement = (
+        select(HealthCheck)
+        .where(HealthCheck.service_id == service_id)
+        .order_by(
+            HealthCheck.checked_at.desc(),
+            HealthCheck.id.desc(),
+        )
+        .limit(limit)
+    )
+
+    return list(db.scalars(statement).all())

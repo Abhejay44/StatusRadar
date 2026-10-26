@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.monitoring.history import get_latest_health_check
+from app.monitoring.history import get_latest_health_check, list_health_checks
 from app.monitoring.service_monitor import monitor_service
 from app.schemas.health_check import HealthCheckResponse
 from app.schemas.service import ServiceCreate, ServiceResponse
@@ -39,6 +39,33 @@ def get_monitored_services(
 ) -> list[ServiceResponse]:
     services = list_services(db)
     return [ServiceResponse.model_validate(service) for service in services]
+
+
+@router.get(
+    "/{service_id}/checks",
+    response_model=list[HealthCheckResponse],
+)
+def get_service_check_history(
+    service_id: int,
+    limit: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> list[HealthCheckResponse]:
+    try:
+        health_checks = list_health_checks(
+            db=db,
+            service_id=service_id,
+            limit=limit,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return [
+        HealthCheckResponse.model_validate(health_check)
+        for health_check in health_checks
+    ]
 
 
 @router.get(
