@@ -4,8 +4,10 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.monitoring.history import get_latest_health_check, list_health_checks
 from app.monitoring.service_monitor import monitor_service
+from app.monitoring.status import get_current_service_status
 from app.schemas.health_check import HealthCheckResponse
 from app.schemas.service import ServiceCreate, ServiceResponse
+from app.schemas.status import ServiceStatusResponse
 from app.services.service_registry import create_service, list_services
 
 
@@ -39,6 +41,33 @@ def get_monitored_services(
 ) -> list[ServiceResponse]:
     services = list_services(db)
     return [ServiceResponse.model_validate(service) for service in services]
+
+
+@router.get(
+    "/{service_id}/status",
+    response_model=ServiceStatusResponse,
+)
+def get_service_status(
+    service_id: int,
+    db: Session = Depends(get_db),
+) -> ServiceStatusResponse:
+    try:
+        service_status = get_current_service_status(
+            db=db,
+            service_id=service_id,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(exc),
+        ) from exc
+
+    return ServiceStatusResponse(
+        service_id=service_status.service_id,
+        status=service_status.status,
+        response_time_ms=service_status.response_time_ms,
+        checked_at=service_status.checked_at,
+    )
 
 
 @router.get(
