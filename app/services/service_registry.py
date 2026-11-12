@@ -32,3 +32,12 @@ def create_service(
 def list_services(db: Session) -> list[Service]:
     statement = select(Service).order_by(Service.id)
     return list(db.scalars(statement).all())
+
+
+def list_active_services(db: Session) -> list[Service]:
+    statement = (
+        select(Service)
+        .where(Service.is_active.is_(True))
+        .order_by(Service.id)
+    )
+    return list(db.scalars(statement).all())
