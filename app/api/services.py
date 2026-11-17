@@ -8,7 +8,9 @@ from app.monitoring.status import get_current_service_status
 from app.schemas.health_check import HealthCheckResponse
 from app.schemas.service import ServiceCreate, ServiceResponse
 from app.schemas.status import ServiceStatusResponse
+from app.schemas.summary import ServiceSummaryResponse
 from app.services.service_registry import create_service, list_services
+from app.services.service_summary import list_service_summaries
 
 
 router = APIRouter(prefix="/api/services", tags=["services"])
@@ -41,6 +43,29 @@ def get_monitored_services(
 ) -> list[ServiceResponse]:
     services = list_services(db)
     return [ServiceResponse.model_validate(service) for service in services]
+
+
+@router.get(
+    "/summary",
+    response_model=list[ServiceSummaryResponse],
+)
+def get_service_summaries(
+    db: Session = Depends(get_db),
+) -> list[ServiceSummaryResponse]:
+    summaries = list_service_summaries(db)
+
+    return [
+        ServiceSummaryResponse(
+            id=summary.id,
+            name=summary.name,
+            url=summary.url,
+            is_active=summary.is_active,
+            status=summary.status,
+            response_time_ms=summary.response_time_ms,
+            checked_at=summary.checked_at,
+        )
+        for summary in summaries
+    ]
 
 
 @router.get(
